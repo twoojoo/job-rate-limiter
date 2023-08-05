@@ -76,13 +76,13 @@ Expected output:
 2023-08-05T16:01:25.224Z #> 13 done
 ```
 
-## Limit types
+## Limits
 
 - **maxJobsPerTimespan**: limits the number of jobs that can be executed in a time window
 - **maxConcurrentJobs**: limits then number of jobs that can run in parallel
 - **maxItemsPerTimespan**: limits the number of item that jobs can handle in a time window
 
-## Limits object breakdon
+### Limits object breakdon
 
 ```typescript 
 type LimiterRules = {
