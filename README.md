@@ -80,7 +80,7 @@ Expected output:
 
 - **maxJobsPerTimespan**: limits the number of jobs that can be executed in a time window
 - **maxConcurrentJobs**: limits then number of jobs that can run in parallel
-- **maxItemsPerTimespan**: limits the number of item that jobs can handle in a time window
+- **maxItemsPerTimespan**: limits the number of item that jobs can handle in a time window (when provided)
 
 ### Limits object breakdon
 
@@ -120,4 +120,14 @@ type LimiterRules = {
 		/* same structure as namespace limits*/
 	}
 }
+```
+
+## Job Kind
+
+When a job kind is provided, limits can be applied to the kind itself (both at namespace and keyspace level).
+
+```typescript
+await limiter.exec("job-key", async () => {
+		// job 
+	}, { kind: "job-kind" })
 ```
