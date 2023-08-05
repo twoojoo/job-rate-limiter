@@ -92,7 +92,7 @@ type LimiterRules = {
 				count: number,
 				timespan: number // milliseconds
 			}, 
-			kinds?: { // for specific job kinds (or if kind is not specified)
+			kinds?: { // for specific job kinds (when specified)
 				[kind: string]: {
 					count: number,
 					timespan: number
