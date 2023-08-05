@@ -4,7 +4,7 @@ Job rate limiter (stateful through Redis) that can handles complex situations us
 
 ## Basic usage
 ```typescript
-import { Limiter, LimiterRules, isLimitError } from "job-rate-limiter"
+import { Limiter, LimiterRules, isLimiterError } from "job-rate-limiter"
 import { Redis } from "ioredis"
 
 const rules: LimiterRules = {
@@ -36,7 +36,7 @@ const limiter = new Limiter(
 
 			console.log(new Date(), `#>`, i, result)
 		} catch (err) {
-			if (isLimitError(err)) {
+			if (isLimiterError(err)) {
 				console.error(new Date(), `!> limit exceeded:`, err)
 				await delay(err.expiresIn || 10000)
 			}
