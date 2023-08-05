@@ -1,6 +1,8 @@
 # Job Rate Limiter
 
-## Usage
+Job rate limiter (stateful through Redis) that can handles complex situations using job namespaces, keys and kinds.
+
+## Basic usage
 ```typescript
 import { Limiter, LimiterRules, isLimitError } from "job-rate-limiter"
 import { Redis } from "ioredis"
