@@ -117,7 +117,7 @@ type LimiterRules = {
 		}
 	},
 	keyspace: { // works at the key level (different limits counters for each job key)
-		/* same */
+		/* same structure as namespace limits*/
 	}
 }
 ```
