@@ -14,7 +14,7 @@ export type LimiterError = {
 	key: number | string,
 	kind?: string,
 	expiresIn?: number
-	type: "maxConcurrentJobs" | "maxJobsPerTimestamp" | "maxItemsPerTimespan"
+	type: "maxConcurrentJobs" | "maxJobsPerTimespan" | "maxItemsPerTimespan"
 }
 
 export function isLimitError(err: any): err is LimiterError {
@@ -27,7 +27,7 @@ export type LimiterRules = {
 }
 
 export type Rules = {
-	maxJobsPerTimestamp?: {
+	maxJobsPerTimespan?: {
 		global?: {
 			count: number,
 			timespan: number
@@ -169,20 +169,20 @@ export class Limiter {
 	}
 
 	private async checkNamespaceMaxJobsPerTimespanGlobal(redisActions: (() => Promise<any>)[], key: string | number) {
-		if (this.rules?.namespace?.maxJobsPerTimestamp?.global) {
+		if (this.rules?.namespace?.maxJobsPerTimespan?.global) {
 			const rKey = this.keyGenerators.maxJobsPerTimespan.namespace()
 			const count = parseInt(await this.redis.get(rKey) || "0")
 
-			if (count >= this.rules!.namespace!.maxJobsPerTimestamp!.global!.count) {
+			if (count >= this.rules!.namespace!.maxJobsPerTimespan!.global!.count) {
 				throw this.buildError({
 					scope: "namespace",
-					type: "maxJobsPerTimestamp",
+					type: "maxJobsPerTimespan",
 					key,
 					expiresIn: await this.getExpiresIn(rKey),
 				})
 			} 	
 
-			const TTLms = this.rules!.namespace!.maxJobsPerTimestamp!.global!.timespan
+			const TTLms = this.rules!.namespace!.maxJobsPerTimespan!.global!.timespan
 
 			redisActions.push(count == 0
 				? async () => await this.redis.set(rKey, count + 1, "PX", TTLms)
@@ -192,20 +192,20 @@ export class Limiter {
 	}
 
 	private async checkKeyMaxJobsPerTimespanGlobal(redisActions: (() => Promise<any>)[], key: string | number) {
-		if (this.rules?.keyspace?.maxJobsPerTimestamp?.global) {
+		if (this.rules?.keyspace?.maxJobsPerTimespan?.global) {
 			const rKey = this.keyGenerators.maxJobsPerTimespan.keyspace(key)
 			const count = parseInt(await this.redis.get(rKey) || "0")
 
-			if (count >= this.rules!.keyspace!.maxJobsPerTimestamp!.global!.count) {
+			if (count >= this.rules!.keyspace!.maxJobsPerTimespan!.global!.count) {
 				throw this.buildError({
 					scope: "key",
 					key,
-					type: "maxJobsPerTimestamp",
+					type: "maxJobsPerTimespan",
 					expiresIn: await this.getExpiresIn(rKey),
 				})
 			} 	
 
-			const TTLms = this.rules!.keyspace!.maxJobsPerTimestamp!.global!.timespan
+			const TTLms = this.rules!.keyspace!.maxJobsPerTimespan!.global!.timespan
 
 			redisActions.push(count == 0
 				? async () => await this.redis.set(rKey, count + 1, "PX", TTLms)
@@ -217,21 +217,21 @@ export class Limiter {
 	}
 
 	private async checkNamespaceMaxJobsPerTimespanPerKind(redisActions: (() => Promise<any>)[], key: string | number, kind: string) {
-		if (this.rules?.namespace?.maxJobsPerTimestamp?.kinds?.[kind]) {
+		if (this.rules?.namespace?.maxJobsPerTimespan?.kinds?.[kind]) {
 			const rKey = this.keyGenerators.maxJobsPerTimespan.namespace(kind)
 			const count = parseInt(await this.redis.get(rKey) || "0")
 
-			if (count >= this.rules!.namespace!.maxJobsPerTimestamp!.kinds![kind]!.count) {
+			if (count >= this.rules!.namespace!.maxJobsPerTimespan!.kinds![kind]!.count) {
 				throw this.buildError({
 					scope: "namespace",
 					kind,
 					key,
-					type: "maxJobsPerTimestamp",
+					type: "maxJobsPerTimespan",
 					expiresIn: await this.getExpiresIn(rKey),
 				})
 			} 	
 
-			const TTLms = this.rules!.namespace!.maxJobsPerTimestamp!.global!.timespan
+			const TTLms = this.rules!.namespace!.maxJobsPerTimespan!.global!.timespan
 
 			redisActions.push(count == 0
 				? async () => {
@@ -244,21 +244,21 @@ export class Limiter {
 	}
 
 	private async checkKeyMaxJobsPerTimespanPerKind(redisActions: (() => Promise<any>)[], key: string | number, kind: string) {
-		if (this.rules?.keyspace?.maxJobsPerTimestamp?.kinds?.[kind]) {
+		if (this.rules?.keyspace?.maxJobsPerTimespan?.kinds?.[kind]) {
 			const rKey = this.keyGenerators.maxJobsPerTimespan.keyspace(kind)
 			const count = parseInt(await this.redis.get(rKey) || "0")
 
-			if (count >= this.rules!.namespace!.maxJobsPerTimestamp!.kinds![kind]!.count) {
+			if (count >= this.rules!.namespace!.maxJobsPerTimespan!.kinds![kind]!.count) {
 				throw this.buildError({
 					scope: "namespace",
-					type: "maxJobsPerTimestamp",
+					type: "maxJobsPerTimespan",
 					expiresIn: await this.getExpiresIn(rKey),
 					kind,
 					key,
 				})
 			} 	
 
-			const TTLms = this.rules!.keyspace!.maxJobsPerTimestamp!.global!.timespan
+			const TTLms = this.rules!.keyspace!.maxJobsPerTimespan!.global!.timespan
 
 			redisActions.push(count == 0
 				? async () => await this.redis.set(rKey, count + 1, "PX", TTLms)
