@@ -59,11 +59,13 @@ export type LimitOptions = {
 }
 
 
-/**Provides a rate limiting layer for request to partners. 
+/**Provides a stateful rate limiting layer for incoming jobs
  * 
- * Can be used as wrapper around the request function through the .exec() method.
+ * @jobs can be used as wrapper around the job function through the .exec() method.
  * 
- * Limits are shared between different services using Redis as stateful storage.*/
+ * @Redis limits are shared between different instances using Redis as stateful storage.
+ * 
+ * @note every instance that shares the same redis connection, namespace and rules acts as a single instance (even when working on different machines)*/
 
 export class Limiter {
 	private defaultOpts: Partial<LimitOptions> = {}
@@ -265,7 +267,6 @@ export class Limiter {
 			if (count >= this.rules!.namespace!.maxItemsPerTimespan!.global!.count) {
 				throw this.buildError({
 					scope: "namespace",
-					kind: "send.prices",
 					type: "maxItemsPerTimespan",
 					key,
 					expireAt: undefined //TODO
@@ -289,8 +290,8 @@ export class Limiter {
 			if (count >= this.rules!.namespace!.maxItemsPerTimespan!.kinds![kind]!.count) {
 				throw this.buildError({
 					scope: "namespace",
-					kind: "send.prices",
 					type: "maxItemsPerTimespan",
+					kind,
 					key,
 					expireAt: undefined //TODO
 				})
@@ -313,7 +314,7 @@ export class Limiter {
 			if (count >= this.rules!.keyspace!.maxItemsPerTimespan!.kinds![kind]!.count) {
 				throw this.buildError({
 					scope: "key",
-					kind: "send.prices",
+					kind,
 					type: "maxItemsPerTimespan",
 					key,
 					expireAt: undefined //TODO
@@ -337,7 +338,6 @@ export class Limiter {
 			if (count >= this.rules!.keyspace!.maxItemsPerTimespan!.global?.count) {
 				throw this.buildError({
 					scope: "key",
-					kind: "send.prices",
 					type: "maxItemsPerTimespan",
 					key,
 					expireAt: undefined //TODO
