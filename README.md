@@ -44,11 +44,11 @@ const limiter = new Limiter(
 })()
 
 async function delay(ms: number) {
-	return await new Promise<string>(r => setTimeout(() => r("done"), ms))
+	return await new Promise<void>(resolve => setTimeout(() => resolve(), ms))
 }
 ```
 
-Expecte output:
+Expected output:
 
 ```bash
 2023-08-05T15:57:37.791Z #> 0 done
