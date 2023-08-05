@@ -178,7 +178,7 @@ export class Limiter {
 					scope: "namespace",
 					type: "maxJobsPerTimestamp",
 					key,
-					expiresIn: undefined //TODO
+					expiresIn: await this.getExpiresIn(rKey),
 				})
 			} 	
 
@@ -201,7 +201,7 @@ export class Limiter {
 					scope: "key",
 					key,
 					type: "maxJobsPerTimestamp",
-					expiresIn: undefined //TODO
+					expiresIn: await this.getExpiresIn(rKey),
 				})
 			} 	
 
@@ -227,7 +227,7 @@ export class Limiter {
 					kind,
 					key,
 					type: "maxJobsPerTimestamp",
-					expiresIn: undefined //TODO
+					expiresIn: await this.getExpiresIn(rKey),
 				})
 			} 	
 
@@ -252,9 +252,9 @@ export class Limiter {
 				throw this.buildError({
 					scope: "namespace",
 					type: "maxJobsPerTimestamp",
+					expiresIn: await this.getExpiresIn(rKey),
 					kind,
 					key,
-					expiresIn: undefined //TODO
 				})
 			} 	
 
@@ -278,8 +278,8 @@ export class Limiter {
 				throw this.buildError({
 					scope: "namespace",
 					type: "maxItemsPerTimespan",
+					expiresIn: await this.getExpiresIn(rKey),
 					key,
-					expiresIn: undefined //TODO
 				})
 			} 	
 
@@ -303,7 +303,7 @@ export class Limiter {
 					type: "maxItemsPerTimespan",
 					kind,
 					key,
-					expiresIn: undefined //TODO
+					expiresIn: await this.getExpiresIn(rKey),
 				})
 			} 	
 
@@ -327,7 +327,7 @@ export class Limiter {
 					kind,
 					type: "maxItemsPerTimespan",
 					key,
-					expiresIn: undefined //TODO
+					expiresIn: await this.getExpiresIn(rKey),
 				})
 			}
 
@@ -350,7 +350,7 @@ export class Limiter {
 					scope: "key",
 					type: "maxItemsPerTimespan",
 					key,
-					expiresIn: undefined //TODO
+					expiresIn: await this.getExpiresIn(rKey),
 				})
 			}
 
@@ -470,5 +470,12 @@ export class Limiter {
 		(error as LimiterError).namespace = this.namespace;
 		// (error as LimiterError).key = key;
 		return error as LimiterError
+	}
+
+	private async getExpiresIn(redisKey: string) {
+		const ttl = await this.redis.pttl(redisKey)
+		if (ttl == -1) return 0 // means no TTL -> should throw an error?
+		if (ttl == -2) return 0 // means no key -> should throw an error?
+		return ttl
 	}
 }
