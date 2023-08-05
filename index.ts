@@ -17,7 +17,8 @@ export type LimiterError = {
 	type: "maxConcurrentJobs" | "maxJobsPerTimespan" | "maxItemsPerTimespan"
 }
 
-export function isLimitError(err: any): err is LimiterError {
+/**Type guard to check if a catched error is caused by exceeding a limit */
+export function isLimiterError(err: any | unknown): err is LimiterError {
 	return (err as LimiterError).limitError
 }
 

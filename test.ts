@@ -1,4 +1,4 @@
-import { Limiter, LimiterRules, isLimitError } from "."
+import { Limiter, LimiterRules, isLimiterError } from "."
 import { Redis } from "ioredis"
 
 const rules: LimiterRules = {
@@ -30,7 +30,7 @@ const limiter = new Limiter(
 
 			console.log(new Date(), `#>`, i, result)
 		} catch (err) {
-			if (isLimitError(err)) {
+			if (isLimiterError(err)) {
 				console.error(new Date(), `!> limit exceeded:`, err)
 				await delay(err.expiresIn || 10000)
 			}
