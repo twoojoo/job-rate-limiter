@@ -51,25 +51,25 @@ async function delay(ms: number) {
 Expected output:
 
 ```bash
-2023-08-05T15:57:37.791Z #> 0 done
-2023-08-05T15:57:38.797Z #> 1 done
-2023-08-05T15:57:39.801Z #> 2 done
-2023-08-05T15:57:40.804Z #> 3 done
-2023-08-05T15:57:41.808Z #> 4 done
-2023-08-05T15:57:42.814Z #> 5 done
-2023-08-05T15:57:43.818Z #> 6 done
-2023-08-05T15:57:44.820Z #> 7 done
-2023-08-05T15:57:45.821Z #> 8 done
-2023-08-05T15:57:46.823Z #> 9 done
-2023-08-05T15:57:46.825Z !> limit exceeded: {
+2023-08-05T16:01:08.209Z #> 0 done
+2023-08-05T16:01:09.214Z #> 1 done
+2023-08-05T16:01:10.217Z #> 2 done
+2023-08-05T16:01:11.221Z #> 3 done
+2023-08-05T16:01:12.224Z #> 4 done
+2023-08-05T16:01:13.231Z #> 5 done
+2023-08-05T16:01:14.234Z #> 6 done
+2023-08-05T16:01:15.237Z #> 7 done
+2023-08-05T16:01:16.239Z #> 8 done
+2023-08-05T16:01:17.241Z #> 9 done
+2023-08-05T16:01:17.243Z !> limit exceeded: {
   scope: 'namespace',
-  type: 'maxJobsPerTimestamp',
+  type: 'maxJobsPerTimespan',
   key: 'job-key',
-  expiresIn: 4966,
+  expiresIn: 4964,
   limitError: true,
   namespace: 'job-namespace'
 }
-2023-08-05T15:57:52.801Z #> 11 done
-2023-08-05T15:57:53.804Z #> 12 done
-2023-08-05T15:57:54.808Z #> 13 done
+2023-08-05T16:01:23.218Z #> 11 done
+2023-08-05T16:01:24.221Z #> 12 done
+2023-08-05T16:01:25.224Z #> 13 done
 ```
