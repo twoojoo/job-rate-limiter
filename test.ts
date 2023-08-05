@@ -3,7 +3,7 @@ import { Redis } from "ioredis"
 
 const rules: LimiterRules = {
 	namespace: {
-		maxJobsPerTimestamp: {
+		maxJobsPerTimespan: {
 			global: {
 				count: 10,
 				timespan: 15 * 1000 // 1min
