@@ -13,8 +13,12 @@ export type LimiterError = {
 	namespace: string
 	key: number | string,
 	kind?: string,
-	expireAt?: number
+	expiresIn?: number
 	type: "maxConcurrentJobs" | "maxJobsPerTimestamp" | "maxItemsPerTimespan"
+}
+
+export function isLimitError(err: any): err is LimiterError {
+	return (err as LimiterError).limitError
 }
 
 export type LimiterRules = {
@@ -24,11 +28,11 @@ export type LimiterRules = {
 
 export type Rules = {
 	maxJobsPerTimestamp?: {
-		global: {
+		global?: {
 			count: number,
 			timespan: number
 		}, 
-		kinds: {
+		kinds?: {
 			[kind: string]: {
 				count: number,
 				timespan: number
@@ -36,11 +40,11 @@ export type Rules = {
 		},
 	}
 	maxItemsPerTimespan?: {
-		global: {
+		global?: {
 			count: number,
 			timespan: number
 		}, 
-		kinds: {
+		kinds?: {
 			[kind: string]: {
 				count: number,
 				timespan: number
@@ -54,7 +58,7 @@ export type Rules = {
 }
 
 export type LimitOptions = {
-	kind: string,
+	kind?: string,
 	itemsCount?: number
 }
 
@@ -108,7 +112,7 @@ export class Limiter {
 	 * 
 	 * @return the callback result if limits are not execeeded
 	 * @throw a custom error if limits are exceeded (and don't execute the action) - error will be an object with isLimiterError: true*/
-	async exec<T>(key: number | string, opts: LimitOptions, callback: () => Promise<T>): Promise<T> {
+	async exec<T>(key: number | string, callback: () => Promise<T>, opts: LimitOptions = {}): Promise<T> {
 		opts = { ...this.defaultOpts, ...opts }
 
 		if (!this.bypassLimits) {
@@ -116,21 +120,27 @@ export class Limiter {
 		
 			////////// THESE METHODS THROW AN ERROR WHEN EXECEEDING LIMITS!!! ///////////
 			await this.checkNamespaceMaxConcurrentJobsGlobal(redisActions, key)
-			await this.checkNamespaceMaxConcurrentJobsPerKind(redisActions, key, opts.kind)
 			await this.checkNamespaceMaxJobsPerTimespanGlobal(redisActions, key)
-			await this.checkNamespaceMaxJobsPerTimespanPerKind(redisActions, key, opts.kind)
 
 			await this.checkKeyMaxConcurrentJobsGlobal(redisActions, key)
-			await this.checkKeyMaxConcurrentJobsPerKind(redisActions, key, opts.kind)
 			await this.checkKeyMaxJobsPerTimespanGlobal(redisActions, key)
-			await this.checkKeyMaxJobsPerTimespanPerKind(redisActions, key, opts.kind)
 
 			if (opts.itemsCount !== null && opts.itemsCount !== undefined) {
 				await this.checkNamespaceMaxItemsPerTimespanGlobal(redisActions, key, opts.itemsCount)
-				await this.checkNamespaceMaxItemsPerTimespanPerKind(redisActions, key, opts.kind, opts.itemsCount)
-				
 				await this.checkKeyMaxItemsPerTimespanGlobal(redisActions, key, opts.itemsCount)
-				await this.checkKeyMaxItemsPerTimespanPerKind(redisActions, key, opts.kind, opts.itemsCount)
+
+				if (opts.kind) {
+					await this.checkNamespaceMaxItemsPerTimespanPerKind(redisActions, key, opts.kind, opts.itemsCount)
+					await this.checkKeyMaxItemsPerTimespanPerKind(redisActions, key, opts.kind, opts.itemsCount)
+				}
+			}
+
+			if (opts.kind) {
+				await this.checkKeyMaxJobsPerTimespanPerKind(redisActions, key, opts.kind)
+				await this.checkKeyMaxConcurrentJobsPerKind(redisActions, key, opts.kind)
+				await this.checkNamespaceMaxConcurrentJobsPerKind(redisActions, key, opts.kind)
+				await this.checkNamespaceMaxJobsPerTimespanPerKind(redisActions, key, opts.kind)
+
 			}
 
 			////////////////////////////////////////////////////////////////////////////
@@ -148,11 +158,14 @@ export class Limiter {
 			
 	}
 		
-	private async resetConcurrencyLimits(key: string | number, kind: string) {
+	private async resetConcurrencyLimits(key: string | number, kind?: string) {
 		await this.unregisterNamespaceJobGlobal()
 		await this.unregisterKeyJobGlobal(key)
-		await this.unregisterNamespaceKind(kind)
-		await this.unregisterKeyKind(key, kind)
+
+		if (kind) {
+			await this.unregisterNamespaceKind(kind)
+			await this.unregisterKeyKind(key, kind)
+		}
 	}
 
 	private async checkNamespaceMaxJobsPerTimespanGlobal(redisActions: (() => Promise<any>)[], key: string | number) {
@@ -165,17 +178,14 @@ export class Limiter {
 					scope: "namespace",
 					type: "maxJobsPerTimestamp",
 					key,
-					expireAt: undefined //TODO
+					expiresIn: undefined //TODO
 				})
 			} 	
 
 			const TTLms = this.rules!.namespace!.maxJobsPerTimestamp!.global!.timespan
 
 			redisActions.push(count == 0
-				? async () => {
-					console.log(rKey, count + 1, TTLms) 
-					await this.redis.set(rKey, count + 1, "PX", TTLms)
-				}
+				? async () => await this.redis.set(rKey, count + 1, "PX", TTLms)
 				: async () => await this.redis.set(rKey, count + 1, "KEEPTTL")
 			)
 		}
@@ -191,7 +201,7 @@ export class Limiter {
 					scope: "key",
 					key,
 					type: "maxJobsPerTimestamp",
-					expireAt: undefined //TODO
+					expiresIn: undefined //TODO
 				})
 			} 	
 
@@ -217,7 +227,7 @@ export class Limiter {
 					kind,
 					key,
 					type: "maxJobsPerTimestamp",
-					expireAt: undefined //TODO
+					expiresIn: undefined //TODO
 				})
 			} 	
 
@@ -244,7 +254,7 @@ export class Limiter {
 					type: "maxJobsPerTimestamp",
 					kind,
 					key,
-					expireAt: undefined //TODO
+					expiresIn: undefined //TODO
 				})
 			} 	
 
@@ -269,7 +279,7 @@ export class Limiter {
 					scope: "namespace",
 					type: "maxItemsPerTimespan",
 					key,
-					expireAt: undefined //TODO
+					expiresIn: undefined //TODO
 				})
 			} 	
 
@@ -293,7 +303,7 @@ export class Limiter {
 					type: "maxItemsPerTimespan",
 					kind,
 					key,
-					expireAt: undefined //TODO
+					expiresIn: undefined //TODO
 				})
 			} 	
 
@@ -317,7 +327,7 @@ export class Limiter {
 					kind,
 					type: "maxItemsPerTimespan",
 					key,
-					expireAt: undefined //TODO
+					expiresIn: undefined //TODO
 				})
 			}
 
@@ -340,7 +350,7 @@ export class Limiter {
 					scope: "key",
 					type: "maxItemsPerTimespan",
 					key,
-					expireAt: undefined //TODO
+					expiresIn: undefined //TODO
 				})
 			}
 
