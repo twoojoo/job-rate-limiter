@@ -17,5 +17,9 @@
   "bugs": {
     "url": "https://github.com/twoojoo/job-rate-limiter/issues"
   },
-  "homepage": "https://github.com/twoojoo/job-rate-limiter#readme"
+  "homepage": "https://github.com/twoojoo/job-rate-limiter#readme",
+  "devDependencies": {
+    "ioredis": "^5.3.2",
+    "ts-node": "^10.9.1"
+  }
 }
