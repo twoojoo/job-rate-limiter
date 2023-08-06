@@ -186,9 +186,11 @@ type LimiterError = {
 	expiresIn?: number
 	type: "maxConcurrentJobs" | "maxJobsPerTimespan" | "maxItemsPerTimespan"
 }
+```
 
-//when catching the error you can check if it's
-//a limiter error through this type guard:
+When catching the error, you can check if it's a limiter error through this type guard:
+
+```typescript
 try {
 
 	// job execution through limiter
