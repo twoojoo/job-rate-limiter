@@ -19,10 +19,10 @@ You need to limit a series of jobs, let's say HTTP requests, while respecting th
 
 All these conditions can be handled via this library by
 
-- using job namespaces to indicate different API servers
-- using job keys to indicate different API accounts
-- using job kinds to indicate the kind of request
-- setting rate limiting rules for each of these scopes and for each kind of limit
+- using **jobs namespaces** to indicate different API servers
+- using **jobs keys** to indicate different API accounts
+- using **jobs kinds** to indicate the kind of requestT
+- setting *rate limiting rules* for each of these scopes and for each kind of limit
 
 
 ## Basic usage
