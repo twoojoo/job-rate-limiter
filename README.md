@@ -1,6 +1,6 @@
 # Job Rate Limiter
 
-Job rate limiter (stateful through Redis) that can handles complex situations using job namespaces, keys and kinds.
+Tiny job rate limiter (stateful through Redis) that can handles complex situations using job namespaces, keys and kinds.
 
 ## Basic usage
 
