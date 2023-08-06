@@ -18,6 +18,7 @@ You need to limit a series of jobs, let's say HTTP requests, while respecting th
 	- limit items handled by requests in a time window
   - set different limits counters for each API (both server-wide and account-wide)
   - set different limits counters both for all requests kinds and for specific kinds (both server-wide and account-wide)
+  - make request for possiblt more than 1 
 
 All these conditions can be handled via this library by
 
@@ -165,7 +166,7 @@ await limiter.exec("job-key", async () => {
 
 ### Jobs items limit
 
-A limit can be set also for the total amount of items a series of job can handle in a timespan. Since the limiter can't know how to calculate the amount of items that a job will handle, this value has to be passed as an option:
+A limit can be set also for the total amount of items that a series of job can handle in a timespan. Since the limiter can't know how to calculate the amount of items that a job will handle, this value has to be passed as an option:
 
 ```typescript
 await limiter.exec("job-key", async () => {
