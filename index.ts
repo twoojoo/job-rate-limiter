@@ -60,7 +60,7 @@ export type Rules = {
 
 export type LimitOptions = {
 	kind?: string,
-	itemsCount?: number
+	items?: number
 }
 
 
@@ -126,13 +126,13 @@ export class Limiter {
 			await this.checkKeyMaxConcurrentJobsGlobal(redisActions, key)
 			await this.checkKeyMaxJobsPerTimespanGlobal(redisActions, key)
 
-			if (opts.itemsCount !== null && opts.itemsCount !== undefined) {
-				await this.checkNamespaceMaxItemsPerTimespanGlobal(redisActions, key, opts.itemsCount)
-				await this.checkKeyMaxItemsPerTimespanGlobal(redisActions, key, opts.itemsCount)
+			if (opts.items !== null && opts.items !== undefined) {
+				await this.checkNamespaceMaxItemsPerTimespanGlobal(redisActions, key, opts.items)
+				await this.checkKeyMaxItemsPerTimespanGlobal(redisActions, key, opts.items)
 
 				if (opts.kind) {
-					await this.checkNamespaceMaxItemsPerTimespanPerKind(redisActions, key, opts.kind, opts.itemsCount)
-					await this.checkKeyMaxItemsPerTimespanPerKind(redisActions, key, opts.kind, opts.itemsCount)
+					await this.checkNamespaceMaxItemsPerTimespanPerKind(redisActions, key, opts.kind, opts.items)
+					await this.checkKeyMaxItemsPerTimespanPerKind(redisActions, key, opts.kind, opts.items)
 				}
 			}
 

@@ -87,7 +87,7 @@ Expected output:
 
 - **maxJobsPerTimespan**: limits the number of jobs that can be executed in a time window
 - **maxConcurrentJobs**: limits then number of jobs that can run in parallel
-- **maxItemsPerTimespan**: limits the number of item that jobs can handle in a time window (when provided)
+- **maxItemsPerTimespan**: limits the number of item that jobs can handle in a time window ([when provided](#job-items-limit))
 
 ### Limits object breakdon
 
@@ -146,5 +146,5 @@ A limit can be set also for the total amount of items a series of job can handle
 ```typescript
 await limiter.exec("job-key", async () => {
 		// job that handles 12 items
-	}, { itemsCount: 12 })
+	}, { items: 12 })
 ```
