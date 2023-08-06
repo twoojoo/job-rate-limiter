@@ -2,7 +2,7 @@
 
 A tiny job rate limiter that can handles complex situations using job namespace, key and kind (stateful through Redis).
 
-## Use case example
+### Use case example
 
 You need to limit a series of jobs, let's say HTTP requests, while respecting these conditions:
 
@@ -24,7 +24,7 @@ All these conditions can be handled via this library by
 - using **jobs kinds** to indicate the kind of request
 - setting *rate limiting rules* for each of these scopes and for each kind of limit
 
-## Basic usage
+### Basic usage
 
 The following example shows how to set up a limiter in order to:
 
@@ -105,13 +105,13 @@ Expected output:
 2023-08-05T16:01:25.224Z #> 12 done
 ```
 
-## Limits
+### Limits
 
 - **maxJobsPerTimespan**: limits the number of jobs that can be executed in a time window
 - **maxConcurrentJobs**: limits then number of jobs that can run in parallel
 - **maxItemsPerTimespan**: limits the number of items that jobs can handle in a time window ([when provided](#jobs-items-limit))
 
-### Limits object breakdon
+#### Limits object breakdon
 
 ```typescript 
 type LimiterRules = {
@@ -151,7 +151,7 @@ type LimiterRules = {
 }
 ```
 
-## Job kind
+### Job kind
 
 When a job kind is provided, limits can be applied to the kind itself (both at namespace and keyspace level):
 
@@ -161,7 +161,7 @@ await limiter.exec("job-key", async () => {
 	}, { kind: "example" })
 ```
 
-## Jobs items limit
+### Jobs items limit
 
 A limit can be set also for the total amount of items a series of job can handle in a timespan. Since the limiter can't know how to calculate the amount of items that a job will handle, this value has to be passed as an option:
 
@@ -171,7 +171,7 @@ await limiter.exec("job-key", async () => {
 	}, { items: 12 })
 ```
 
-## Limiter error type 
+### Limiter error type 
 
 When a limit is exceeded, an error is thrown in the form of an object that has the following type:
 
