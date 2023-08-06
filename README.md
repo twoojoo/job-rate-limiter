@@ -15,7 +15,7 @@ You need to limit a series of jobs, let's say HTTP requests, while respecting th
 	- limit requests in a time window
 	- limit items handled by requests in a time window
   - set different limits counters for each API (both server-wide and account-wide)
-  - set different limits counters both for all requests kinds and for specific kinds
+  - set different limits counters both for all requests kinds and for specific kinds (both server-wide and account-wide)
 
 All these conditions can be handled via this library by
 
