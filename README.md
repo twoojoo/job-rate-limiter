@@ -1,6 +1,6 @@
 # Job Rate Limiter
 
-Tiny job rate limiter that can handles complex situations using job namespaces, keys and kinds (stateful through Redis).
+Tiny job rate limiter that can handles complex situations using job namespace, key and kind (stateful through Redis).
 
 ## Basic usage
 
@@ -159,7 +159,7 @@ type LimiterError = {
 	scope: "namespace" | "key"
 	namespace: string
 	key: number | string,
-	kind?: string,
+	kind?: string, 
 	expiresIn?: number
 	type: "maxConcurrentJobs" | "maxJobsPerTimespan" | "maxItemsPerTimespan"
 }

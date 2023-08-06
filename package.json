@@ -1,7 +1,7 @@
 {
   "name": "job-rate-limiter",
   "version": "0.0.1",
-  "description": "Tiny job rate limiter that can handles complex situations using job namespaces, keys and kinds (stateful through Redis)",
+  "description": "Tiny job rate limiter that can handles complex situations using job namespace, key and kind (stateful through Redis).",
   "main": "index.js",
   "scripts": {
     "test": "npm run build && node test.js",
