@@ -1,13 +1,13 @@
 # Job Rate Limiter
 
-Tiny job rate limiter that can handles complex situations using job namespace, key and kind (stateful through Redis).
+A tiny job rate limiter that can handles complex situations using job namespace, key and kind (stateful through Redis).
 
 ## Use case example
 
 You need to limit a series of jobs, let's say HTTP requests, while respecting these conditions:
 
 - requests are sent to different servers (maybe exposing different APIs)
-- you can't rely on these server to set up a proper rate limiter
+- you can't rely on these servers to set up a proper rate limiter
 - for each sever, requests are sent for different API accounts
 - for every account, requests may be of different kinds
 - you must be able to: 
@@ -21,9 +21,8 @@ All these conditions can be handled via this library by
 
 - using **jobs namespaces** to indicate different API servers
 - using **jobs keys** to indicate different API accounts
-- using **jobs kinds** to indicate the kind of requestT
+- using **jobs kinds** to indicate the kind of request
 - setting *rate limiting rules* for each of these scopes and for each kind of limit
-
 
 ## Basic usage
 
