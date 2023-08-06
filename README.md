@@ -11,7 +11,7 @@ You need to limit a series of jobs, let's say HTTP requests, while respecting th
 - each server requires different rate limiting strategies
 - for each sever, requests are sent for different API accounts
 - for every account, requests may be of different kinds
-- each request kind may require different rate limit strategies
+- each request kind may require different rate limiting strategies
 - you must be able to: 
 	- limit concurrent requests
 	- limit requests in a time window
