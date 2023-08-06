@@ -85,15 +85,15 @@ export class Limiter {
 	private keyGenerators = {
 		maxItemsPerTimespan: {
 			namespace: (kind?: string) => `rl-mppt-${this.namespace}${"-" + kind || ""}`,
-			keyspace: (key: string | number, kind?: string) => `rl-mppt-${key}${kind || ""}`
+			keyspace: (key: string | number, kind?: string) => `rl-mppt-${this.namespace}-${key}${kind || ""}`
 		},
 		maxJobsPerTimespan: {
 			namespace: (kind?: string) => `rl-mrpt-${this.namespace}${"-" + kind || ""}`,
-			keyspace: (key: string | number, kind?: string) => `rl-mrpt-${key}${"-" + kind || ""}`
+			keyspace: (key: string | number, kind?: string) => `rl-mrpt-${this.namespace}-${key}${"-" + kind || ""}`
 		},
 		maxConcurrentJobs: {
 			namespace: (kind?: string) => `rl-mcr-${this.namespace}${"-" + kind || ""}`,
-			keyspace: (key: string | number, kind?: string) => `rl-mcr-${key}${"-" + kind || ""}`
+			keyspace: (key: string | number, kind?: string) => `rl-mcr-${this.namespace}-${key}${"-" + kind || ""}`
 		}
 	};
 
