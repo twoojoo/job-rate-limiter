@@ -87,7 +87,7 @@ Expected output:
 
 - **maxJobsPerTimespan**: limits the number of jobs that can be executed in a time window
 - **maxConcurrentJobs**: limits then number of jobs that can run in parallel
-- **maxItemsPerTimespan**: limits the number of item that jobs can handle in a time window ([when provided](#jobs-items-limit))
+- **maxItemsPerTimespan**: limits the number of items that jobs can handle in a time window ([when provided](#jobs-items-limit))
 
 ### Limits object breakdon
 
@@ -147,4 +147,34 @@ A limit can be set also for the total amount of items a series of job can handle
 await limiter.exec("job-key", async () => {
 		// job that handles 12 items
 	}, { items: 12 })
+```
+
+## Limiter error type 
+
+When a limit is exceeded, an error is thrown in the form of an object that has the following type:
+
+```typescript
+type LimiterError = {
+	limitError: true,
+	scope: "namespace" | "key"
+	namespace: string
+	key: number | string,
+	kind?: string,
+	expiresIn?: number
+	type: "maxConcurrentJobs" | "maxJobsPerTimespan" | "maxItemsPerTimespan"
+}
+
+//when catching the error you can check if it's
+//a limiter error through this type guard:
+try {
+
+	// job execution through limiter
+
+} catch (err) {
+	if (isLimiterError(err)) {
+
+		//limiter error handling
+
+	} else throw err
+}
 ```
