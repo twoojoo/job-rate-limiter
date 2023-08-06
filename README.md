@@ -3,6 +3,13 @@
 Job rate limiter (stateful through Redis) that can handles complex situations using job namespaces, keys and kinds.
 
 ## Basic usage
+
+The following example shows how to set up a limiter in order to:
+
+- execute 100 (fake) jobs
+- allowing a maximum of 10 jobs in a 15 seconds time window (for the whole job namespace)
+- when this limit is exceeded, retry after the provided expiration time of the window (or after 10 seconds)
+
 ```typescript
 import { Limiter, LimiterRules, isLimiterError } from "job-rate-limiter"
 import { Redis } from "ioredis"
@@ -24,13 +31,12 @@ const limiter = new Limiter(
 	rules
 );
 
-
 (async function () {
 	for (let i = 0; i < 100; i++) {
 		try {
-			//simulating a long job 
+			//simulating a 1 second long job 
 			const result = await limiter.exec("job-key", async () => {
-				await delay(1000) // 1sec
+				await delay(1000)
 				return "done" 
 			})
 
@@ -39,6 +45,7 @@ const limiter = new Limiter(
 			if (isLimiterError(err)) {
 				console.error(new Date(), `!> limit exceeded:`, err)
 				await delay(err.expiresIn || 10000)
+				i-- // to retry the current job
 			}
 			else throw err
 		}
@@ -71,9 +78,9 @@ Expected output:
   limitError: true,
   namespace: 'job-namespace'
 }
-2023-08-05T16:01:23.218Z #> 11 done
-2023-08-05T16:01:24.221Z #> 12 done
-2023-08-05T16:01:25.224Z #> 13 done
+2023-08-05T16:01:23.218Z #> 10 done
+2023-08-05T16:01:24.221Z #> 11 done
+2023-08-05T16:01:25.224Z #> 12 done
 ```
 
 ## Limits
@@ -122,12 +129,22 @@ type LimiterRules = {
 }
 ```
 
-## Job Kind
+## Job kind
 
-When a job kind is provided, limits can be applied to the kind itself (both at namespace and keyspace level).
+When a job kind is provided, limits can be applied to the kind itself (both at namespace and keyspace level):
 
 ```typescript
 await limiter.exec("job-key", async () => {
-		// job 
-	}, { kind: "job-kind" })
+		// job of kind "example"
+	}, { kind: "example" })
+```
+
+## Jobs items limit
+
+A limit can be set also for the total amount of items a series of job can handle in a timespan. Since the limiter can't know how to calculate the amount of items that a job will handle, this value has to be passed as an option:
+
+```typescript
+await limiter.exec("job-key", async () => {
+		// job that handles 12 items
+	}, { itemsCount: 12 })
 ```

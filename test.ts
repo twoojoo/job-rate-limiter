@@ -33,6 +33,7 @@ const limiter = new Limiter(
 			if (isLimiterError(err)) {
 				console.error(new Date(), `!> limit exceeded:`, err)
 				await delay(err.expiresIn || 10000)
+				i--
 			}
 			else throw err
 		}
