@@ -159,8 +159,8 @@ When a job kind is provided, limits can be applied to the kind itself (both at n
 
 ```typescript
 await limiter.exec("job-key", async () => {
-		// job of kind "example"
-	}, { kind: "example" })
+	// job of kind "example"
+}, { kind: "example" })
 ```
 
 ### Jobs items limit
@@ -169,8 +169,8 @@ A limit can be set also for the total amount of items a series of job can handle
 
 ```typescript
 await limiter.exec("job-key", async () => {
-		// job that handles 12 items
-	}, { items: 12 })
+	// job that handles 12 items
+}, { items: 12 })
 ```
 
 ### Limiter error type 
