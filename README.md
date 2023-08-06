@@ -2,6 +2,21 @@
 
 Tiny job rate limiter that can handles complex situations using job namespace, key and kind (stateful through Redis).
 
+## Use case example
+
+You need to limit a series of jobs, let's say HTTP requests, while respecting these conditions:
+
+- requests are sent to different servers (maybe exposing different APIs)
+- you cant rely on these server to set up a proper rate limiter
+- for each sever, requests are sent for different API accounts
+- for every account, requests may be of different kinds
+- you must be able to: 
+	- limit concurrent requests
+	- limit requests in a time window
+	- limit items handled by requests in a time window
+  - set different limits counters for each API (both server-wide and account-wide)
+  - set different limits counters both for all requests kinds and for specific kinds
+  
 ## Basic usage
 
 The following example shows how to set up a limiter in order to:
