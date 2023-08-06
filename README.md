@@ -6,10 +6,12 @@ A tiny job rate limiter that can handles complex situations using job namespace,
 
 You need to limit a series of jobs, let's say HTTP requests, while respecting these conditions:
 
-- requests are sent to different servers (maybe exposing different APIs)
-- you can't rely on these servers to set up a proper rate limiter
+- requests are sent to different servers exposing different APIs
+- these servers have some limitations but don't have a proper rate limiter
+- each server requires different rate limiting strategies
 - for each sever, requests are sent for different API accounts
 - for every account, requests may be of different kinds
+- each request kind may require different rate limit strategies
 - you must be able to: 
 	- limit concurrent requests
 	- limit requests in a time window
