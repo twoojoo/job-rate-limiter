@@ -106,9 +106,9 @@ Expected output:
   kind: undefined,
   limiterId: 'limiter-id'
 }
-2023-08-07T16:08:22.675Z #> 10 done
-2023-08-07T16:08:23.677Z #> 11 done
-2023-08-07T16:08:24.679Z #> 12 done
+2023-08-07T16:08:22.675Z > 10 done
+2023-08-07T16:08:23.677Z > 11 done
+2023-08-07T16:08:24.679Z > 12 done
 ```
 
 ### Limits
