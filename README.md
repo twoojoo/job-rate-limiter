@@ -18,7 +18,7 @@ You need to limit a series of jobs, let's say HTTP requests, while respecting th
 	- limit items handled by requests in a time window
   - set different limits counters for each API (both server-wide and account-wide)
   - set different limits counters both for all requests kinds and for specific kinds (both server-wide and account-wide)
-  - make request for possiblt more than 1 
+  - make request possibly from more than one single client, but sharing limits counters (limiter state)
 
 All these conditions can be handled via this library by
 
