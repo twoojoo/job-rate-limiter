@@ -182,7 +182,7 @@ await limiter.exec("job-key", async () => {
 When a limit is exceeded, an error is thrown in the form of an object that has the following type:
 
 ```typescript
-export type LimiterError = {
+type LimiterError = {
 	limiterId: string,
 	type: "maxConcurrentJobs" | "maxJobsPerTimespan" | "maxItemsPerTimespan"
 	scope: "namespace" | "key"
