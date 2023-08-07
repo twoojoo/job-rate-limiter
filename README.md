@@ -67,7 +67,7 @@ const limiter = new Limiter(
 		if (err) {
 			console.error(new Date(), `! limit exceeded:`, err)
 
-			await delay(err.expiresIn || 10000) //wait limit expiratin
+			await delay(err.expiresIn || 10000) //wait limit expiration
 
 			i--	 // keep counter at the current job 
 			continue // and retry
