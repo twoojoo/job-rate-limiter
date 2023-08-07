@@ -51,15 +51,15 @@ const rules: LimiterRules = {
 }
 
 const limiter = new Limiter(
+	"limiter-id",
 	new Redis("localhost:6379"),
-	"job-namespace",
 	rules
 );
 
 (async function () {
 	for (let i = 0; i < 100; i++) {
 
-		const [result, err] = await limiter.exec("job-key", async () => {
+		const [result, err] = await limiter.exec("job-namespace", "job-key", async () => {
 			await delay(1000) //simulating a 1 sec job 
 			return "done" 
 		})
@@ -86,27 +86,27 @@ async function delay(ms: number) {
 Expected output:
 
 ```bash
-2023-08-05T16:01:08.209Z #> 0 done
-2023-08-05T16:01:09.214Z #> 1 done
-2023-08-05T16:01:10.217Z #> 2 done
-2023-08-05T16:01:11.221Z #> 3 done
-2023-08-05T16:01:12.224Z #> 4 done
-2023-08-05T16:01:13.231Z #> 5 done
-2023-08-05T16:01:14.234Z #> 6 done
-2023-08-05T16:01:15.237Z #> 7 done
-2023-08-05T16:01:16.239Z #> 8 done
-2023-08-05T16:01:17.241Z #> 9 done
-2023-08-05T16:01:17.243Z !> limit exceeded: {
+2023-08-07T15:57:20.416Z #> 0 done
+2023-08-07T15:57:21.422Z #> 1 done
+2023-08-07T15:57:22.425Z #> 2 done
+2023-08-07T15:57:23.427Z #> 3 done
+2023-08-07T15:57:24.430Z #> 4 done
+2023-08-07T15:57:25.435Z #> 5 done
+2023-08-07T15:57:26.437Z #> 6 done
+2023-08-07T15:57:27.439Z #> 7 done
+2023-08-07T15:57:28.440Z #> 8 done
+2023-08-07T15:57:29.441Z #> 9 done
+2023-08-07T15:57:29.443Z !> limit exceeded: {
   scope: 'namespace',
   type: 'maxJobsPerTimespan',
   key: 'job-key',
-  expiresIn: 4964,
-  limitError: true,
-  namespace: 'job-namespace'
+  namespace: 'job-namespace',
+  expiresIn: 4971,
+  limiterId: 'limiter-id'
 }
-2023-08-05T16:01:23.218Z #> 10 done
-2023-08-05T16:01:24.221Z #> 11 done
-2023-08-05T16:01:25.224Z #> 12 done
+2023-08-07T15:57:35.424Z #> 10 done
+2023-08-07T15:57:36.426Z #> 11 done
+2023-08-07T15:57:37.428Z #> 12 done
 ```
 
 ### Limits
@@ -180,13 +180,14 @@ await limiter.exec("job-key", async () => {
 When a limit is exceeded, an error is thrown in the form of an object that has the following type:
 
 ```typescript
-type LimiterError = {
-	limitError: true,
+export type LimiterError = {
+	limiterId: string,
 	scope: "namespace" | "key"
 	namespace: string
 	key: number | string,
-	kind?: string, 
-	expiresIn?: number
+	global: boolean,
+	kind?: string, // only if provided 
+	expiresIn?: number // only for maxJobsPerTimespan and maxItemsPerTimespan
 	type: "maxConcurrentJobs" | "maxJobsPerTimespan" | "maxItemsPerTimespan"
 }
 ```

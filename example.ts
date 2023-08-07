@@ -13,15 +13,15 @@ const rules: LimiterRules = {
 }
 
 const limiter = new Limiter(
+	"limiter-id",
 	new Redis("localhost:6379"),
-	"job-namespace",
 	rules
 );
 
 
 (async function () {
 	for (let i = 0; i < 100; i++) {
-		const [result, err] = await limiter.exec("job-key", async () => {
+		const [result, err] = await limiter.exec("job-namespace", "job-key", async () => {
 			await delay(1000) //simulating a 1 sec job 
 			return "done" 
 		})

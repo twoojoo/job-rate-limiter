@@ -7,16 +7,19 @@ import Redis from "ioredis"
  * 
  * */
 
+type RedisAction = (() => Promise<any>)
+
 type Without<T, U> = { [P in Exclude<keyof T, keyof U>]?: never };
 type XOR<T, U> = (T | U) extends object ? (Without<T, U> & U) | (Without<U, T> & T) : T | U;
 
 export type LimiterError = {
-	// limitError: true,
+	limiterId: string,
 	scope: "namespace" | "key"
 	namespace: string
 	key: number | string,
 	kind?: string,
 	expiresIn?: number
+	global: boolean,
 	type: "maxConcurrentJobs" | "maxJobsPerTimespan" | "maxItemsPerTimespan"
 }
 
@@ -74,23 +77,23 @@ export class Limiter {
 	private bypassLimits = false
 
 	constructor(
-		private redis: Redis, 
-		private namespace: string,
+		private id: string,
+		private redis: Redis,
 		private rules: LimiterRules
 	) {}
 
 	private keyGenerators = {
 		maxItemsPerTimespan: {
-			namespace: (kind?: string) => `rl-mppt-${this.namespace}${"-" + kind || ""}`,
-			keyspace: (key: string | number, kind?: string) => `rl-mppt-${this.namespace}-${key}${kind || ""}`
+			namespace: (ns: string, kind?: string) => `rl-mppt-${this.id}-${ns}${"-" + kind || ""}`,
+			keyspace: (ns: string, key: string | number, kind?: string) => `rl-mppt-${this.id}-${ns}-${key}${kind || ""}`
 		},
 		maxJobsPerTimespan: {
-			namespace: (kind?: string) => `rl-mrpt-${this.namespace}${"-" + kind || ""}`,
-			keyspace: (key: string | number, kind?: string) => `rl-mrpt-${this.namespace}-${key}${"-" + kind || ""}`
+			namespace: (ns: string, kind?: string) => `rl-mrpt-${this.id}-${ns}${"-" + kind || ""}`,
+			keyspace: (ns: string, key: string | number, kind?: string) => `rl-mrpt-${this.id}-${ns}-${key}${"-" + kind || ""}`
 		},
 		maxConcurrentJobs: {
-			namespace: (kind?: string) => `rl-mcr-${this.namespace}${"-" + kind || ""}`,
-			keyspace: (key: string | number, kind?: string) => `rl-mcr-${this.namespace}-${key}${"-" + kind || ""}`
+			namespace: (ns: string, kind?: string) => `rl-mcr-${this.id}-${ns}${"-" + kind || ""}`,
+			keyspace: (ns: string, key: string | number, kind?: string) => `rl-mcr-${this.id}-${ns}-${key}${"-" + kind || ""}`
 		}
 	};
 
@@ -110,82 +113,82 @@ export class Limiter {
 	 * 
 	 * @return the callback result if limits are not execeeded
 	 * @throw a custom error if limits are exceeded (and don't execute the action) - error will be an object with isLimiterError: true*/
-	async exec<T>(key: number | string, callback: () => Promise<T>, opts: LimitOptions = {}): Promise<[null, LimiterError] | [T, null]> {
+	async exec<T>(namespace: string, key: number | string, callback: () => Promise<T>, opts: LimitOptions = {}): Promise<[null, LimiterError] | [T, null]> {
 		opts = { ...this.defaultOpts, ...opts }
 
 		if (!this.bypassLimits) {
-			const redisActions: (() => Promise<any>)[] = []
+			const rActions: RedisAction[] = []
 			let err: void | LimiterError
 
-			err = await this.checkNamespaceMaxConcurrentJobsGlobal(redisActions, key)
+			err = await this.checkNamespaceMaxConcurrentJobsGlobal(rActions, namespace, key, opts.kind)
 			if (err) return [null, err]
 
-			err = await this.checkNamespaceMaxJobsPerTimespanGlobal(redisActions, key)
+			err = await this.checkNamespaceMaxJobsPerTimespanGlobal(rActions, namespace, key, opts.kind)
 			if (err) return [null, err]
 
-			err = await this.checkKeyMaxConcurrentJobsGlobal(redisActions, key)
+			err = await this.checkKeyMaxConcurrentJobsGlobal(rActions, namespace, key, opts.kind)
 			if (err) return [null, err]
 
-			err = await this.checkKeyMaxJobsPerTimespanGlobal(redisActions, key)
+			err = await this.checkKeyMaxJobsPerTimespanGlobal(rActions, namespace, key, opts.kind)
 			if (err) return [null, err]
 
 			if (opts.items !== null && opts.items !== undefined) {
-				err = await this.checkNamespaceMaxItemsPerTimespanGlobal(redisActions, key, opts.items)
+				err = await this.checkNamespaceMaxItemsPerTimespanGlobal(rActions, namespace, key, opts.items, opts.kind)
 				if (err) return [null, err]
 
-				err = await this.checkKeyMaxItemsPerTimespanGlobal(redisActions, key, opts.items)
+				err = await this.checkKeyMaxItemsPerTimespanGlobal(rActions, namespace, key, opts.items, opts.kind)
 				if (err) return [null, err]
 
 				if (opts.kind) {
-					err = await this.checkNamespaceMaxItemsPerTimespanPerKind(redisActions, key, opts.kind, opts.items)
+					err = await this.checkNamespaceMaxItemsPerTimespanPerKind(rActions, namespace, key, opts.kind, opts.items)
 					if (err) return [null, err]
 
-					err = await this.checkKeyMaxItemsPerTimespanPerKind(redisActions, key, opts.kind, opts.items)
+					err = await this.checkKeyMaxItemsPerTimespanPerKind(rActions, namespace, key, opts.kind, opts.items)
 					if (err) return [null, err]
 				}
 			}
 
 			if (opts.kind) {
-				err = await this.checkKeyMaxJobsPerTimespanPerKind(redisActions, key, opts.kind)
+				err = await this.checkKeyMaxJobsPerTimespanPerKind(rActions, namespace, key, opts.kind)
 				if (err) return [null, err]
 
-				err = await this.checkKeyMaxConcurrentJobsPerKind(redisActions, key, opts.kind)
+				err = await this.checkKeyMaxConcurrentJobsPerKind(rActions, namespace, key, opts.kind)
 				if (err) return [null, err]
 
-				err = await this.checkNamespaceMaxConcurrentJobsPerKind(redisActions, key, opts.kind)
+				err = await this.checkNamespaceMaxConcurrentJobsPerKind(rActions, namespace, key, opts.kind)
 				if (err) return [null, err]
 
-				err = await this.checkNamespaceMaxJobsPerTimespanPerKind(redisActions, key, opts.kind)
+				err = await this.checkNamespaceMaxJobsPerTimespanPerKind(rActions, namespace, key, opts.kind)
 				if (err) return [null, err]
 			}
 
 			////////////////////////////////////////////////////////////////////////////
 			
-			await Promise.allSettled(redisActions.map(a => a()))	
+			await Promise.allSettled(rActions.map(a => a()))	
 		}
 
 		const result = await callback()
 
 		if (!this.bypassLimits) { 
-			await this.resetConcurrencyLimits(key, opts.kind)
+			await this.resetConcurrencyLimits(namespace, key, opts.kind)
 		}
 
 		return [result, null]
 	}
 		
-	private async resetConcurrencyLimits(key: string | number, kind?: string) {
-		await this.unregisterNamespaceJobGlobal()
-		await this.unregisterKeyJobGlobal(key)
+	private async resetConcurrencyLimits(ns: string, key: string | number, kind?: string) {
+		await this.unregisterNamespaceJobGlobal(ns)
+		await this.unregisterKeyJobGlobal(ns, key)
 
 		if (kind) {
-			await this.unregisterNamespaceKind(kind)
-			await this.unregisterKeyKind(key, kind)
+			await this.unregisterNamespaceKind(ns, kind)
+			await this.unregisterKeyKind(ns, key, kind)
 		}
 	}
 
-	private async checkNamespaceMaxJobsPerTimespanGlobal(redisActions: (() => Promise<any>)[], key: string | number): Promise<void | LimiterError> {
+	private async checkNamespaceMaxJobsPerTimespanGlobal(rActions: RedisAction[], ns: string, key: string | number, kind?: string): Promise<void | LimiterError> {
 		if (this.rules?.namespace?.maxJobsPerTimespan?.global) {
-			const rKey = this.keyGenerators.maxJobsPerTimespan.namespace()
+			const rKey = this.keyGenerators.maxJobsPerTimespan.namespace(ns, ns)
 			const count = parseInt(await this.redis.get(rKey) || "0")
 
 			if (count >= this.rules!.namespace!.maxJobsPerTimespan!.global!.count) {
@@ -193,45 +196,51 @@ export class Limiter {
 					scope: "namespace",
 					type: "maxJobsPerTimespan",
 					key,
+					global: true,
+					namespace: ns,
 					expiresIn: await this.getExpiresIn(rKey),
+					kind,
 				})
 			} 	
 
 			const TTLms = this.rules!.namespace!.maxJobsPerTimespan!.global!.timespan
 
-			redisActions.push(count == 0
+			rActions.push(count == 0
 				? async () => await this.redis.set(rKey, count + 1, "PX", TTLms)
 				: async () => await this.redis.set(rKey, count + 1, "KEEPTTL")
 			)
 		}
 	}
 
-	private async checkKeyMaxJobsPerTimespanGlobal(redisActions: (() => Promise<any>)[], key: string | number): Promise<void | LimiterError> {
+	private async checkKeyMaxJobsPerTimespanGlobal(rActions: RedisAction[], ns: string, key: string | number, kind?: string): Promise<void | LimiterError> {
 		if (this.rules?.keyspace?.maxJobsPerTimespan?.global) {
-			const rKey = this.keyGenerators.maxJobsPerTimespan.keyspace(key)
+			const rKey = this.keyGenerators.maxJobsPerTimespan.keyspace(ns, key)
 			const count = parseInt(await this.redis.get(rKey) || "0")
 
 			if (count >= this.rules!.keyspace!.maxJobsPerTimespan!.global!.count) {
 				return this.buildError({
 					scope: "key",
 					key,
+					namespace: ns,
+					global: true,
 					type: "maxJobsPerTimespan",
 					expiresIn: await this.getExpiresIn(rKey),
+					kind,
 				})
 			} 	
 
 			const TTLms = this.rules!.keyspace!.maxJobsPerTimespan!.global!.timespan
 
-			redisActions.push(count == 0
+			rActions.push(count == 0
 				? async () => await this.redis.set(rKey, count + 1, "PX", TTLms)
 				: async () => await this.redis.set(rKey, count + 1, "KEEPTTL")
 			)
 		}
 	}
 
-	private async checkNamespaceMaxJobsPerTimespanPerKind(redisActions: (() => Promise<any>)[], key: string | number, kind: string): Promise<void | LimiterError> {
+	private async checkNamespaceMaxJobsPerTimespanPerKind(rActions: RedisAction[], ns: string, key: string | number, kind: string): Promise<void | LimiterError> {
 		if (this.rules?.namespace?.maxJobsPerTimespan?.kinds?.[kind]) {
-			const rKey = this.keyGenerators.maxJobsPerTimespan.namespace(kind)
+			const rKey = this.keyGenerators.maxJobsPerTimespan.namespace(ns, kind)
 			const count = parseInt(await this.redis.get(rKey) || "0")
 
 			if (count >= this.rules!.namespace!.maxJobsPerTimespan!.kinds![kind]!.count) {
@@ -239,6 +248,8 @@ export class Limiter {
 					scope: "namespace",
 					kind,
 					key,
+					namespace: ns,
+					global: false,
 					type: "maxJobsPerTimespan",
 					expiresIn: await this.getExpiresIn(rKey),
 				})
@@ -246,7 +257,7 @@ export class Limiter {
 
 			const TTLms = this.rules!.namespace!.maxJobsPerTimespan!.global!.timespan
 
-			redisActions.push(count == 0
+			rActions.push(count == 0
 				? async () => {
 					console.log(rKey, count + 1, TTLms) 
 					await this.redis.set(rKey, count + 1, "PX", TTLms)
@@ -256,15 +267,17 @@ export class Limiter {
 		}
 	}
 
-	private async checkKeyMaxJobsPerTimespanPerKind(redisActions: (() => Promise<any>)[], key: string | number, kind: string): Promise<void | LimiterError> {
+	private async checkKeyMaxJobsPerTimespanPerKind(rActions: RedisAction[], ns: string, key: string | number, kind: string): Promise<void | LimiterError> {
 		if (this.rules?.keyspace?.maxJobsPerTimespan?.kinds?.[kind]) {
-			const rKey = this.keyGenerators.maxJobsPerTimespan.keyspace(kind)
+			const rKey = this.keyGenerators.maxJobsPerTimespan.keyspace(ns, kind)
 			const count = parseInt(await this.redis.get(rKey) || "0")
 
 			if (count >= this.rules!.namespace!.maxJobsPerTimespan!.kinds![kind]!.count) {
 				return this.buildError({
 					scope: "namespace",
 					type: "maxJobsPerTimespan",
+					namespace: ns,
+					global: false,
 					expiresIn: await this.getExpiresIn(rKey),
 					kind,
 					key,
@@ -273,16 +286,16 @@ export class Limiter {
 
 			const TTLms = this.rules!.keyspace!.maxJobsPerTimespan!.global!.timespan
 
-			redisActions.push(count == 0
+			rActions.push(count == 0
 				? async () => await this.redis.set(rKey, count + 1, "PX", TTLms)
 				: async () => await this.redis.set(rKey, count + 1, "KEEPTTL")
 			)
 		}
 	}
 
-	private async checkNamespaceMaxItemsPerTimespanGlobal(redisActions: (() => Promise<any>)[], key: string | number, itemsCount: number): Promise<void | LimiterError> {
+	private async checkNamespaceMaxItemsPerTimespanGlobal(rActions: RedisAction[], ns: string, key: string | number, itemsCount: number, kind?: string): Promise<void | LimiterError> {
 		if (this.rules?.namespace?.maxItemsPerTimespan?.global) {
-			const rKey = this.keyGenerators.maxItemsPerTimespan.namespace()
+			const rKey = this.keyGenerators.maxItemsPerTimespan.namespace(ns,)
 			const count = parseInt(await this.redis.get(rKey) || "0")
 
 			if (count >= this.rules!.namespace!.maxItemsPerTimespan!.global!.count) {
@@ -290,22 +303,25 @@ export class Limiter {
 					scope: "namespace",
 					type: "maxItemsPerTimespan",
 					expiresIn: await this.getExpiresIn(rKey),
+					namespace: ns,
+					global: true,
 					key,
+					kind,
 				})
 			} 	
 
 			const TTLms = this.rules!.namespace!.maxItemsPerTimespan!.global!.timespan
 
-			redisActions.push(count == 0
+			rActions.push(count == 0
 				? async () => await this.redis.set(rKey, count + itemsCount!, "PX", TTLms)
 				: async () => await this.redis.set(rKey, count + itemsCount!, "KEEPTTL")
 			)
 		}
 	}
 
-	private async checkNamespaceMaxItemsPerTimespanPerKind(redisActions: (() => Promise<any>)[], key: string | number, kind: string, itemsCount: number): Promise<void | LimiterError> {
+	private async checkNamespaceMaxItemsPerTimespanPerKind(rActions: RedisAction[], ns: string, key: string | number, kind: string, itemsCount: number): Promise<void | LimiterError> {
 		if (this.rules?.namespace?.maxItemsPerTimespan?.kinds?.[kind]) {
-			const rKey = this.keyGenerators.maxItemsPerTimespan.namespace(kind)
+			const rKey = this.keyGenerators.maxItemsPerTimespan.namespace(ns, kind)
 			const count = parseInt(await this.redis.get(rKey) || "0")
 
 			if (count >= this.rules!.namespace!.maxItemsPerTimespan!.kinds![kind]!.count) {
@@ -315,21 +331,23 @@ export class Limiter {
 					kind,
 					key,
 					expiresIn: await this.getExpiresIn(rKey),
+					namespace: ns,
+					global: false,
 				})
 			} 	
 
 			const TTLms = this.rules!.namespace!.maxItemsPerTimespan!.kinds![kind]!.timespan
 
-			redisActions.push(count == 0
+			rActions.push(count == 0
 				? async () => await this.redis.set(rKey, count + itemsCount!, "PX", TTLms)
 				: async () => await this.redis.set(rKey, count + itemsCount!, "KEEPTTL")
 			)
 		}
 	}
 
-	private async checkKeyMaxItemsPerTimespanPerKind(redisActions: (() => Promise<any>)[], key: string | number, kind: string, itemsCount: number): Promise<void | LimiterError> {
+	private async checkKeyMaxItemsPerTimespanPerKind(rActions: RedisAction[], ns: string, key: string | number, kind: string, itemsCount: number): Promise<void | LimiterError> {
 		if (this.rules?.keyspace?.maxItemsPerTimespan?.kinds?.[kind]) {
-			const rKey = this.keyGenerators.maxItemsPerTimespan.keyspace(key, kind)
+			const rKey = this.keyGenerators.maxItemsPerTimespan.keyspace(ns, key, kind)
 			const count = parseInt(await this.redis.get(rKey) || "0")
 
 			if (count >= this.rules!.keyspace!.maxItemsPerTimespan!.kinds![kind]!.count) {
@@ -339,21 +357,23 @@ export class Limiter {
 					type: "maxItemsPerTimespan",
 					key,
 					expiresIn: await this.getExpiresIn(rKey),
+					namespace: ns,
+					global: false,
 				})
 			}
 
 			const TTLms = this.rules!.keyspace!.maxItemsPerTimespan!.kinds![kind]!.timespan
 
-			redisActions.push(count == 0
+			rActions.push(count == 0
 				? async () => await this.redis.set(rKey, count + itemsCount!, "PX", TTLms)
 				: async () => await this.redis.set(rKey, count + itemsCount!, "KEEPTTL")
 			)
 		}
 	}
 
-	private async checkKeyMaxItemsPerTimespanGlobal(redisActions: (() => Promise<any>)[], key: string | number, itemsCount: number): Promise<void | LimiterError> {
+	private async checkKeyMaxItemsPerTimespanGlobal(rActions: RedisAction[], ns: string, key: string | number, itemsCount: number, kind?: string): Promise<void | LimiterError> {
 		if (this.rules?.keyspace?.maxItemsPerTimespan?.global) {
-			const rKey = this.keyGenerators.maxItemsPerTimespan.keyspace(key)
+			const rKey = this.keyGenerators.maxItemsPerTimespan.keyspace(ns, key)
 			const count = parseInt(await this.redis.get(rKey) || "0")
 
 			if (count >= this.rules!.keyspace!.maxItemsPerTimespan!.global?.count) {
@@ -362,55 +382,64 @@ export class Limiter {
 					type: "maxItemsPerTimespan",
 					key,
 					expiresIn: await this.getExpiresIn(rKey),
+					global: true,
+					namespace: ns,
+					kind,
 				})
 			}
 
 			const TTLms = this.rules!.keyspace!.maxItemsPerTimespan!.global!.timespan
 
-			redisActions.push(count == 0
+			rActions.push(count == 0
 				? async () => await this.redis.set(rKey, count + itemsCount!, "PX", TTLms)
 				: async () => await this.redis.set(rKey, count + itemsCount!, "KEEPTTL")
 			)
 		}
 	}
 
-	private async checkNamespaceMaxConcurrentJobsGlobal(redisActions: (() => Promise<any>)[], key: string | number): Promise<void | LimiterError> {
+	private async checkNamespaceMaxConcurrentJobsGlobal(rActions: RedisAction[], ns: string, key: string | number, kind?: string): Promise<void | LimiterError> {
 		if (this.rules?.namespace?.maxConcurrentJobs?.global) {
-			const rKey = this.keyGenerators.maxConcurrentJobs.namespace()
+			const rKey = this.keyGenerators.maxConcurrentJobs.namespace(ns,)
 			const count = parseInt(await this.redis.get(rKey) || "0")
 
 			if (count >= this.rules!.namespace!.maxConcurrentJobs!.global!) {
 				return this.buildError({
 					scope: "namespace",
 					key,
-					type: "maxConcurrentJobs"
+					type: "maxConcurrentJobs",
+					global: true,
+					namespace: ns,
+					kind,
 				})
 			} 
 
-			redisActions.push(async () => await this.redis.set(rKey, count + 1))
+			rActions.push(async () => await this.redis.set(rKey, count + 1))
 		}
 	}
 
-	private async checkKeyMaxConcurrentJobsGlobal(redisActions: (() => Promise<any>)[], key: string | number): Promise<void | LimiterError> {
+	private async checkKeyMaxConcurrentJobsGlobal(rActions: RedisAction[], ns: string, key: string | number, kind?: string): Promise<void | LimiterError> {
 		if (this.rules?.keyspace?.maxConcurrentJobs?.global) {
-			const rKey = this.keyGenerators.maxConcurrentJobs.keyspace(key)
+			const rKey = this.keyGenerators.maxConcurrentJobs.keyspace(ns, key)
 			const count = parseInt(await this.redis.get(rKey) || "0")
 
 			if (count >= this.rules!.keyspace!.maxConcurrentJobs!.global!) {
 				return this.buildError({
 					scope: "key",
 					key,
-					type: "maxConcurrentJobs"
+					namespace: ns,
+					type: "maxConcurrentJobs",
+					global: true,
+					kind,
 				})
 			} 
 
-			redisActions.push(async () => await this.redis.set(rKey, count + 1))
+			rActions.push(async () => await this.redis.set(rKey, count + 1))
 		}
 	}
 
-	private async checkNamespaceMaxConcurrentJobsPerKind(redisActions: (() => Promise<any>)[], key: string | number, kind: string): Promise<void | LimiterError> {
+	private async checkNamespaceMaxConcurrentJobsPerKind(rActions: RedisAction[], ns: string, key: string | number, kind: string): Promise<void | LimiterError> {
 		if (this.rules?.namespace?.maxConcurrentJobs?.kinds?.[kind]) {
-			const rKey = this.keyGenerators.maxConcurrentJobs.namespace(kind)
+			const rKey = this.keyGenerators.maxConcurrentJobs.namespace(ns, kind)
 			const count = parseInt(await this.redis.get(rKey) || "0")
 
 			if (count >= this.rules!.namespace!.maxConcurrentJobs!.kinds![kind]) {
@@ -418,17 +447,19 @@ export class Limiter {
 					scope: "namespace",
 					kind: kind,
 					key,
-					type: "maxConcurrentJobs"
+					namespace: ns,
+					type: "maxConcurrentJobs",
+					global: false,
 				})
 			} 
 
-			redisActions.push(async () => await this.redis.set(rKey, count + 1))
+			rActions.push(async () => await this.redis.set(rKey, count + 1))
 		}
 	}
 
-	private async checkKeyMaxConcurrentJobsPerKind(redisActions: (() => Promise<any>)[], key: string | number, kind: string): Promise<void | LimiterError> {
+	private async checkKeyMaxConcurrentJobsPerKind(rActions: RedisAction[], ns: string, key: string | number, kind: string): Promise<void | LimiterError> {
 		if (this.rules?.namespace?.maxConcurrentJobs?.kinds?.[kind]) {
-			const rKey = this.keyGenerators.maxConcurrentJobs.keyspace(key, kind)
+			const rKey = this.keyGenerators.maxConcurrentJobs.keyspace(ns, key, kind)
 			const count = parseInt(await this.redis.get(rKey) || "0")
 
 			if (count >= this.rules!.namespace!.maxConcurrentJobs!.kinds![kind]) {
@@ -436,50 +467,50 @@ export class Limiter {
 					scope: "namespace",
 					kind: kind,
 					key,
-					type: "maxConcurrentJobs"
+					namespace: ns,
+					type: "maxConcurrentJobs",
+					global: false,
 				})
 			} 
 
-			redisActions.push(async () => await this.redis.set(rKey, count + 1))
+			rActions.push(async () => await this.redis.set(rKey, count + 1))
 		}
 	}
 
-	private async unregisterNamespaceKind(kind: string): Promise<void> {
+	private async unregisterNamespaceKind(ns: string, kind: string): Promise<void> {
 		if (this.rules?.namespace?.maxConcurrentJobs?.kinds?.[kind]) {
-			const rKey = this.keyGenerators.maxConcurrentJobs.namespace(kind)
+			const rKey = this.keyGenerators.maxConcurrentJobs.namespace(ns, kind)
 			const count = parseInt(await this.redis.get(rKey) || "0")
 			await this.redis.set(rKey, count == 0 ? 0 : count - 1)
 		}
 	}
 
-	private async unregisterKeyKind(key: string | number, kind: string): Promise<void> {
+	private async unregisterKeyKind(ns: string, key: string | number, kind: string): Promise<void> {
 		if (this.rules?.keyspace?.maxConcurrentJobs?.kinds?.[kind]) {
-			const rKey = this.keyGenerators.maxConcurrentJobs.keyspace(key, kind)
+			const rKey = this.keyGenerators.maxConcurrentJobs.keyspace(ns, key, kind)
 			const count = parseInt(await this.redis.get(rKey) || "0")
 			await this.redis.set(rKey, count == 0 ? 0 : count - 1)
 		}
 	}
 
-	private async unregisterNamespaceJobGlobal(): Promise<void> {
+	private async unregisterNamespaceJobGlobal(ns: string): Promise<void> {
 		if (this.rules?.namespace?.maxConcurrentJobs?.global) {
-			const rKey = this.keyGenerators.maxConcurrentJobs.namespace()
+			const rKey = this.keyGenerators.maxConcurrentJobs.namespace(ns)
 			const count = parseInt(await this.redis.get(rKey) || "0")
 			await this.redis.set(rKey, count == 0 ? 0 : count - 1)
 		}
 	}
 
-	private async unregisterKeyJobGlobal(key: string | number): Promise<void> {
+	private async unregisterKeyJobGlobal(ns: string, key: string | number): Promise<void> {
 		if (this.rules?.keyspace?.maxConcurrentJobs?.global) {
-			const rKey = this.keyGenerators.maxConcurrentJobs.keyspace(key)
+			const rKey = this.keyGenerators.maxConcurrentJobs.keyspace(ns, key)
 			const count = parseInt(await this.redis.get(rKey) || "0")
 			await this.redis.set(rKey, count == 0 ? 0 : count - 1)
 		}
 	}
 
-	private buildError(error: Omit<LimiterError, 'limitError' | 'namespace'>): LimiterError {
-		// (error as LimiterError).limitError = true;
-		(error as LimiterError).namespace = this.namespace;
-		// (error as LimiterError).key = key;
+	private buildError(error: Omit<LimiterError, 'limiterId'>): LimiterError {
+		(error as LimiterError).limiterId = this.id;
 		return error as LimiterError
 	}
 
