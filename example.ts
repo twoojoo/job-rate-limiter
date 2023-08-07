@@ -1,4 +1,4 @@
-import { Limiter, LimiterRules, isLimiterError } from "."
+import { Limiter, LimiterRules } from "."
 import { Redis } from "ioredis"
 
 const rules: LimiterRules = {
@@ -21,22 +21,19 @@ const limiter = new Limiter(
 
 (async function () {
 	for (let i = 0; i < 100; i++) {
-		try {
-			//simulating a long job 
-			const result = await limiter.exec("job-key", async () => {
-				await delay(1000) // 1sec
-				return "done" 
-			})
+		const [result, err] = await limiter.exec("job-key", async () => {
+			await delay(1000) //simulating a 1 sec job 
+			return "done" 
+		})
 
-			console.log(new Date(), `#>`, i, result)
-		} catch (err) {
-			if (isLimiterError(err)) {
-				console.error(new Date(), `!> limit exceeded:`, err)
-				await delay(err.expiresIn || 10000)
-				i--
-			}
-			else throw err
+		if (err) {
+			console.error(new Date(), `!> limit exceeded:`, err)
+			await delay(err.expiresIn || 10000)
+			i--			// keep counter to the current job 
+			continue	// and retry
 		}
+
+		console.log(new Date(), `#>`, i, result)
 	}
 })()
 

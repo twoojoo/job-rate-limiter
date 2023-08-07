@@ -58,22 +58,23 @@ const limiter = new Limiter(
 
 (async function () {
 	for (let i = 0; i < 100; i++) {
-		try {
-			//simulating a 1 second long job 
-			const result = await limiter.exec("job-key", async () => {
-				await delay(1000)
-				return "done" 
-			})
 
-			console.log(new Date(), `#>`, i, result)
-		} catch (err) {
-			if (isLimiterError(err)) {
-				console.error(new Date(), `!> limit exceeded:`, err)
-				await delay(err.expiresIn || 10000)
-				i-- // to retry the current job
-			}
-			else throw err
+		const [result, err] = await limiter.exec("job-key", async () => {
+			await delay(1000) //simulating a 1 sec job 
+			return "done" 
+		})
+
+		if (err) {
+			console.error(new Date(), `!> limit exceeded:`, err)
+
+			await delay(err.expiresIn || 10000) //wait limit expiratin
+
+			i--			  // keep counter at the current job 
+			continue	// and retry
 		}
+
+		console.log(new Date(), `#>`, i, result)
+
 	}
 })()
 
@@ -187,21 +188,5 @@ type LimiterError = {
 	kind?: string, 
 	expiresIn?: number
 	type: "maxConcurrentJobs" | "maxJobsPerTimespan" | "maxItemsPerTimespan"
-}
-```
-
-When catching the error, you can check if it's a limiter error through this type guard:
-
-```typescript
-try {
-
-	// job execution through limiter
-
-} catch (err) {
-	if (isLimiterError(err)) {
-
-		//limiter error handling
-
-	} else throw err
 }
 ```

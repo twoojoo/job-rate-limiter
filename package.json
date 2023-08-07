@@ -4,7 +4,7 @@
   "description": "Tiny job rate limiter that can handles complex situations using job namespace, key and kind (stateful through Redis).",
   "main": "index.js",
   "scripts": {
-    "test": "npm run build && node test.js",
+    "test": "npm run build && node example.js",
     "build": "rm -rf ./dist && tsc"
   },
   "repository": {
