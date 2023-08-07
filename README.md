@@ -36,7 +36,7 @@ The following example shows how to set up a limiter in order to:
 - when this limit is exceeded, retry after the provided expiration time of the window (or after 10 seconds)
 
 ```typescript
-import { Limiter, LimiterRules, isLimiterError } from "job-rate-limiter"
+import { Limiter, LimiterRules } from "job-rate-limiter"
 import { Redis } from "ioredis"
 
 const rules: LimiterRules = {

@@ -20,11 +20,6 @@ export type LimiterError = {
 	type: "maxConcurrentJobs" | "maxJobsPerTimespan" | "maxItemsPerTimespan"
 }
 
-// /**Type guard to check if a catched error is caused by exceeding a limit */
-// export function isLimiterError(err: any | unknown): err is LimiterError {
-// 	return (err as LimiterError).limitError
-// }
-
 export type LimiterRules = {
 	namespace?: Rules,
 	keyspace?: Rules,
