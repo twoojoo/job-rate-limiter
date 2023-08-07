@@ -184,12 +184,12 @@ When a limit is exceeded, an error is thrown in the form of an object that has t
 ```typescript
 export type LimiterError = {
 	limiterId: string,
+	type: "maxConcurrentJobs" | "maxJobsPerTimespan" | "maxItemsPerTimespan"
 	scope: "namespace" | "key"
 	namespace: string
 	key: number | string,
 	global: boolean,
 	kind?: string, // only if provided 
 	expiresIn?: number // only for maxJobsPerTimespan and maxItemsPerTimespan
-	type: "maxConcurrentJobs" | "maxJobsPerTimespan" | "maxItemsPerTimespan"
 }
 ```

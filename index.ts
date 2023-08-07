@@ -14,13 +14,13 @@ type XOR<T, U> = (T | U) extends object ? (Without<T, U> & U) | (Without<U, T> &
 
 export type LimiterError = {
 	limiterId: string,
+	type: "maxConcurrentJobs" | "maxJobsPerTimespan" | "maxItemsPerTimespan"
 	scope: "namespace" | "key"
 	namespace: string
 	key: number | string,
-	kind?: string,
-	expiresIn?: number
 	global: boolean,
-	type: "maxConcurrentJobs" | "maxJobsPerTimespan" | "maxItemsPerTimespan"
+	kind?: string, // only if provided 
+	expiresIn?: number // only for maxJobsPerTimespan and maxItemsPerTimespan
 }
 
 export type LimiterRules = {
