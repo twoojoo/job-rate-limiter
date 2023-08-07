@@ -65,7 +65,7 @@ const limiter = new Limiter(
 		})
 
 		if (err) {
-			console.error(new Date(), `!> limit exceeded:`, err)
+			console.error(new Date(), `! limit exceeded:`, err)
 
 			await delay(err.expiresIn || 10000) //wait limit expiratin
 
@@ -73,7 +73,7 @@ const limiter = new Limiter(
 			continue // and retry
 		}
 
-		console.log(new Date(), `#>`, i, result)
+		console.log(new Date(), `>`, i, result)
 
 	}
 })()
@@ -85,28 +85,30 @@ async function delay(ms: number) {
 
 Expected output:
 
-```bash
-2023-08-07T15:57:20.416Z #> 0 done
-2023-08-07T15:57:21.422Z #> 1 done
-2023-08-07T15:57:22.425Z #> 2 done
-2023-08-07T15:57:23.427Z #> 3 done
-2023-08-07T15:57:24.430Z #> 4 done
-2023-08-07T15:57:25.435Z #> 5 done
-2023-08-07T15:57:26.437Z #> 6 done
-2023-08-07T15:57:27.439Z #> 7 done
-2023-08-07T15:57:28.440Z #> 8 done
-2023-08-07T15:57:29.441Z #> 9 done
-2023-08-07T15:57:29.443Z !> limit exceeded: {
+```shell
+2023-08-07T16:08:07.668Z > 0 done
+2023-08-07T16:08:08.675Z > 1 done
+2023-08-07T16:08:09.678Z > 2 done
+2023-08-07T16:08:10.680Z > 3 done
+2023-08-07T16:08:11.683Z > 4 done
+2023-08-07T16:08:12.689Z > 5 done
+2023-08-07T16:08:13.692Z > 6 done
+2023-08-07T16:08:14.695Z > 7 done
+2023-08-07T16:08:15.697Z > 8 done
+2023-08-07T16:08:16.698Z > 9 done
+2023-08-07T16:08:16.699Z ! limit exceeded: {
   scope: 'namespace',
   type: 'maxJobsPerTimespan',
   key: 'job-key',
+  global: true,
   namespace: 'job-namespace',
-  expiresIn: 4971,
+  expiresIn: 4967,
+  kind: undefined,
   limiterId: 'limiter-id'
 }
-2023-08-07T15:57:35.424Z #> 10 done
-2023-08-07T15:57:36.426Z #> 11 done
-2023-08-07T15:57:37.428Z #> 12 done
+2023-08-07T16:08:22.675Z #> 10 done
+2023-08-07T16:08:23.677Z #> 11 done
+2023-08-07T16:08:24.679Z #> 12 done
 ```
 
 ### Limits
