@@ -69,8 +69,8 @@ const limiter = new Limiter(
 
 			await delay(err.expiresIn || 10000) //wait limit expiratin
 
-			i--	 // keep counter at the current job 
-			continue	// and retry
+			i--		// keep counter at the current job 
+			continue // and retry
 		}
 
 		console.log(new Date(), `#>`, i, result)
