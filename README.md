@@ -162,7 +162,7 @@ type LimiterRules = {
 When a job kind is provided, limits can be applied to the kind itself (both at namespace and keyspace level):
 
 ```typescript
-await limiter.exec("job-key", async () => {
+await limiter.exec("job-namespace", "job-key", async () => {
 	// job of kind "example"
 }, { kind: "example" })
 ```
@@ -172,7 +172,7 @@ await limiter.exec("job-key", async () => {
 A limit can be set also for the total amount of items that a series of job can handle in a timespan. Since the limiter can't know how to calculate the amount of items that a job will handle, this value has to be passed as an option:
 
 ```typescript
-await limiter.exec("job-key", async () => {
+await limiter.exec("job-namespace", "job-key", async () => {
 	// job that handles 12 items
 }, { items: 12 })
 ```
