@@ -1,5 +1,5 @@
 import Redis from "ioredis"
-import Redlock from "redlock";
+import Redlock, { Settings, Lock } from "redlock";
 
 /**
  * TODO??: add grace mechanism: 
@@ -75,15 +75,17 @@ export type LimitOptions = {
 
 export class Limiter {
 	private defaultOpts: Partial<LimitOptions> = {}
-	// private bypassLimits = false
 	private redlock: Redlock
+	private lockDuration: number
 
 	constructor(
 		private id: string,
 		private redis: Redis,
-		private rules: LimiterRules
+		private rules: LimiterRules,
+		redislockOptions?: Partial<Settings> & { lockDuration?: number }
 	) {
-		this.redlock = new Redlock([redis])
+		this.lockDuration = redislockOptions?.lockDuration || 5000
+		this.redlock = new Redlock([redis], redislockOptions)
 	}
 
 	private keyGenerators = {
@@ -112,32 +114,21 @@ export class Limiter {
 		]
 	}
 
-	/**ignore limits check*/
-	// bypass() {
-	// 	this.bypassLimits = true
-	// 	return this
-	// }
-
-	// /**ignore limits check*/
-	// unsetBypass() {
-	// 	this.bypassLimits = false
-	// 	return this
-	// }
-
 	/**Execute an action according to limits provided in the class constructor (if no limits are passed, the just execute the action)
 	 * 
 	 * @return the callback result if limits are not execeeded
 	 * @throw a custom error if limits are exceeded (and don't execute the action) - error will be an object with isLimiterError: true*/
 	async exec<T>(namespace: string, key: number | string, callback: () => Promise<T>, opts: LimitOptions = {}): Promise<[null, LimiterError] | [T, null]> {
-		const keys = this.getAllKeys(namespace, key.toString(), opts.kind)
-		const lock = await this.redlock.acquire(keys, 5000) 
-
 		opts = { ...this.defaultOpts, ...opts }
 
-		// if (!this.bypassLimits) {
+		// Aquiring Redis Lock on all involved keys
+		const keys = this.getAllKeys(namespace, key.toString(), opts.kind)
+		let lock = await this.redlock.acquire(keys, this.lockDuration!) 
+
 		const rActions: RedisAction[] = []
 		let err: void | LimiterError
 
+		//check global limits (no kind)
 		err = await this.checkNamespaceMaxConcurrentJobsGlobal(rActions, namespace, key, opts.kind)
 		if (err) return [null, err]
 
@@ -150,6 +141,7 @@ export class Limiter {
 		err = await this.checkKeyMaxJobsPerTimespanGlobal(rActions, namespace, key, opts.kind)
 		if (err) return [null, err]
 
+		// check limits on items count parameter
 		if (opts.items !== null && opts.items !== undefined) {
 			err = await this.checkNamespaceMaxItemsPerTimespanGlobal(rActions, namespace, key, opts.items, opts.kind)
 			if (err) return [null, err]
@@ -166,6 +158,7 @@ export class Limiter {
 			}
 		}
 
+		// check limits on kind parameter
 		if (opts.kind) {
 			err = await this.checkKeyMaxJobsPerTimespanPerKind(rActions, namespace, key, opts.kind)
 			if (err) return [null, err]
@@ -179,21 +172,20 @@ export class Limiter {
 			err = await this.checkNamespaceMaxJobsPerTimespanPerKind(rActions, namespace, key, opts.kind)
 			if (err) return [null, err]
 		}
-
-		////////////////////////////////////////////////////////////////////////////
 			
 		//All updates on counters are executed at the same time so that 
 		//counters get updated only if the job gets actually done
 		await Promise.allSettled(rActions.map(a => a()))	
-		// }
 
+		// Releasing locks before processing job
 		await lock.release()
 
 		const result = await callback()
 
-		// if (!this.bypassLimits) { 
+		// Aquiring Redis Lock on all involved keys
+		lock = await this.redlock.acquire(keys, 5000) 
 		await this.resetConcurrencyLimits(namespace, key, opts.kind)
-		// }
+		await lock.release()
 
 		return [result, null]
 	}

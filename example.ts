@@ -15,7 +15,11 @@ const rules: LimiterRules = {
 const limiter = new Limiter(
 	"limiter-id",
 	new Redis("localhost:6379"),
-	rules
+	rules,
+	{
+		retryCount: 10,
+		retryDelay: 200
+	}
 );
 
 
