@@ -1,4 +1,5 @@
 import Redis from "ioredis"
+import Redlock from "redlock";
 
 /**
  * TODO??: add grace mechanism: 
@@ -74,13 +75,16 @@ export type LimitOptions = {
 
 export class Limiter {
 	private defaultOpts: Partial<LimitOptions> = {}
-	private bypassLimits = false
+	// private bypassLimits = false
+	private redlock: Redlock
 
 	constructor(
 		private id: string,
 		private redis: Redis,
 		private rules: LimiterRules
-	) {}
+	) {
+		this.redlock = new Redlock([redis])
+	}
 
 	private keyGenerators = {
 		maxItemsPerTimespan: {
@@ -97,81 +101,99 @@ export class Limiter {
 		}
 	};
 
-	/**ignore limits check*/
-	bypass() {
-		this.bypassLimits = true
-		return this
+	private getAllKeys(ns: string, key: string, kind?: string): string[] {
+		return [
+			this.keyGenerators.maxItemsPerTimespan.namespace(ns, kind),
+			this.keyGenerators.maxItemsPerTimespan.keyspace(ns, key),
+			this.keyGenerators.maxJobsPerTimespan.namespace(ns, kind),
+			this.keyGenerators.maxJobsPerTimespan.keyspace(ns, key),
+			this.keyGenerators.maxConcurrentJobs.namespace(ns, kind),
+			this.keyGenerators.maxConcurrentJobs.keyspace(ns, key),
+		]
 	}
 
 	/**ignore limits check*/
-	unsetBypass() {
-		this.bypassLimits = false
-		return this
-	}
+	// bypass() {
+	// 	this.bypassLimits = true
+	// 	return this
+	// }
+
+	// /**ignore limits check*/
+	// unsetBypass() {
+	// 	this.bypassLimits = false
+	// 	return this
+	// }
 
 	/**Execute an action according to limits provided in the class constructor (if no limits are passed, the just execute the action)
 	 * 
 	 * @return the callback result if limits are not execeeded
 	 * @throw a custom error if limits are exceeded (and don't execute the action) - error will be an object with isLimiterError: true*/
 	async exec<T>(namespace: string, key: number | string, callback: () => Promise<T>, opts: LimitOptions = {}): Promise<[null, LimiterError] | [T, null]> {
+		const keys = this.getAllKeys(namespace, key.toString(), opts.kind)
+		const lock = await this.redlock.acquire(keys, 5000) 
+
 		opts = { ...this.defaultOpts, ...opts }
 
-		if (!this.bypassLimits) {
-			const rActions: RedisAction[] = []
-			let err: void | LimiterError
+		// if (!this.bypassLimits) {
+		const rActions: RedisAction[] = []
+		let err: void | LimiterError
 
-			err = await this.checkNamespaceMaxConcurrentJobsGlobal(rActions, namespace, key, opts.kind)
+		err = await this.checkNamespaceMaxConcurrentJobsGlobal(rActions, namespace, key, opts.kind)
+		if (err) return [null, err]
+
+		err = await this.checkNamespaceMaxJobsPerTimespanGlobal(rActions, namespace, key, opts.kind)
+		if (err) return [null, err]
+
+		err = await this.checkKeyMaxConcurrentJobsGlobal(rActions, namespace, key, opts.kind)
+		if (err) return [null, err]
+
+		err = await this.checkKeyMaxJobsPerTimespanGlobal(rActions, namespace, key, opts.kind)
+		if (err) return [null, err]
+
+		if (opts.items !== null && opts.items !== undefined) {
+			err = await this.checkNamespaceMaxItemsPerTimespanGlobal(rActions, namespace, key, opts.items, opts.kind)
 			if (err) return [null, err]
 
-			err = await this.checkNamespaceMaxJobsPerTimespanGlobal(rActions, namespace, key, opts.kind)
+			err = await this.checkKeyMaxItemsPerTimespanGlobal(rActions, namespace, key, opts.items, opts.kind)
 			if (err) return [null, err]
-
-			err = await this.checkKeyMaxConcurrentJobsGlobal(rActions, namespace, key, opts.kind)
-			if (err) return [null, err]
-
-			err = await this.checkKeyMaxJobsPerTimespanGlobal(rActions, namespace, key, opts.kind)
-			if (err) return [null, err]
-
-			if (opts.items !== null && opts.items !== undefined) {
-				err = await this.checkNamespaceMaxItemsPerTimespanGlobal(rActions, namespace, key, opts.items, opts.kind)
-				if (err) return [null, err]
-
-				err = await this.checkKeyMaxItemsPerTimespanGlobal(rActions, namespace, key, opts.items, opts.kind)
-				if (err) return [null, err]
-
-				if (opts.kind) {
-					err = await this.checkNamespaceMaxItemsPerTimespanPerKind(rActions, namespace, key, opts.kind, opts.items)
-					if (err) return [null, err]
-
-					err = await this.checkKeyMaxItemsPerTimespanPerKind(rActions, namespace, key, opts.kind, opts.items)
-					if (err) return [null, err]
-				}
-			}
 
 			if (opts.kind) {
-				err = await this.checkKeyMaxJobsPerTimespanPerKind(rActions, namespace, key, opts.kind)
+				err = await this.checkNamespaceMaxItemsPerTimespanPerKind(rActions, namespace, key, opts.kind, opts.items)
 				if (err) return [null, err]
 
-				err = await this.checkKeyMaxConcurrentJobsPerKind(rActions, namespace, key, opts.kind)
-				if (err) return [null, err]
-
-				err = await this.checkNamespaceMaxConcurrentJobsPerKind(rActions, namespace, key, opts.kind)
-				if (err) return [null, err]
-
-				err = await this.checkNamespaceMaxJobsPerTimespanPerKind(rActions, namespace, key, opts.kind)
+				err = await this.checkKeyMaxItemsPerTimespanPerKind(rActions, namespace, key, opts.kind, opts.items)
 				if (err) return [null, err]
 			}
-
-			////////////////////////////////////////////////////////////////////////////
-			
-			await Promise.allSettled(rActions.map(a => a()))	
 		}
+
+		if (opts.kind) {
+			err = await this.checkKeyMaxJobsPerTimespanPerKind(rActions, namespace, key, opts.kind)
+			if (err) return [null, err]
+
+			err = await this.checkKeyMaxConcurrentJobsPerKind(rActions, namespace, key, opts.kind)
+			if (err) return [null, err]
+
+			err = await this.checkNamespaceMaxConcurrentJobsPerKind(rActions, namespace, key, opts.kind)
+			if (err) return [null, err]
+
+			err = await this.checkNamespaceMaxJobsPerTimespanPerKind(rActions, namespace, key, opts.kind)
+			if (err) return [null, err]
+		}
+
+		////////////////////////////////////////////////////////////////////////////
+			
+		//All updates on counters are executed at the same time so that 
+		//counters get updated only if the job gets actually done
+		await Promise.allSettled(rActions.map(a => a()))	
+		// }
+
+		await lock.release()
 
 		const result = await callback()
 
-		if (!this.bypassLimits) { 
-			await this.resetConcurrencyLimits(namespace, key, opts.kind)
-		}
+		// if (!this.bypassLimits) { 
+		await this.resetConcurrencyLimits(namespace, key, opts.kind)
+		// }
 
 		return [result, null]
 	}
