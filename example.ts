@@ -6,7 +6,7 @@ const rules: LimiterRules = {
 		maxJobsPerTimespan: {
 			global: {
 				count: 10,
-				timespan: 15 * 1000 // 1min
+				timespan: 15 * 1000
 			}
 		}
 	}
